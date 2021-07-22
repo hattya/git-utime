@@ -1,0 +1,28 @@
+var os = require('os');
+var path = require('path');
+var go = require('language/go').go;
+var md2html = require('language/markdown').md2html;
+
+var title = 'Aster ☆ ' + path.basename(os.getwd());
+
+aster.title(title);
+aster.ignore.push(/^testdata$/);
+
+// go
+aster.watch(/.+\.go$/, function() {
+  go.mod.tidy();
+  if (go.test('-v', '-race', '-covermode', 'atomic', '-coverprofile', 'cover.out')) return;
+  go.tool.cover('-func', 'cover.out');
+  go.tool.cover('-html', 'cover.out', '-o', 'coverage.html');
+  if (go.vet()) return;
+});
+
+aster.watch(/go\.mod$/, function() {
+  go.mod.tidy();
+});
+
+// md
+aster.watch(/.+\.md$/, function(files) {
+  go.install();
+  files.some(function(md) { return md2html({ src: md }); });
+});
