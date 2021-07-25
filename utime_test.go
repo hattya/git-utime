@@ -9,6 +9,7 @@
 package main
 
 import (
+	"flag"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -16,6 +17,86 @@ import (
 	"testing"
 	"time"
 )
+
+func TestMergeValue(t *testing.T) {
+	var s string
+	c := newMergeValue(&s, "-c")
+	m := newMergeValue(&s, "-m")
+
+	if !c.IsBoolFlag() {
+		t.Fatal("expected true, got false")
+	}
+	if !m.IsBoolFlag() {
+		t.Fatal("expected true, got false")
+	}
+
+	if c.Set("_") == nil {
+		t.Fatal("expected error")
+	}
+	if m.Set("_") == nil {
+		t.Fatal("expected error")
+	}
+
+	// set as "-c"
+	if err := c.Set("true"); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Set("false"); err != nil {
+		t.Fatal(err)
+	}
+	if g, e := s, "-c"; g != e {
+		t.Errorf("expected %q, got %q", e, g)
+	}
+	if g, e := c.Get(), true; g != e {
+		t.Errorf("expected %v, got %v", e, g)
+	}
+	if g, e := m.Get(), false; g != e {
+		t.Errorf("expected %v, got %v", e, g)
+	}
+	if g, e := c.String(), "true"; g != e {
+		t.Errorf("expected %v, got %v", e, g)
+	}
+	if g, e := m.String(), "false"; g != e {
+		t.Errorf("expected %v, got %v", e, g)
+	}
+
+	// set as "-m"
+	if err := c.Set("false"); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Set("true"); err != nil {
+		t.Fatal(err)
+	}
+	if g, e := s, "-m"; g != e {
+		t.Errorf("expected %q, got %q", e, g)
+	}
+	if g, e := c.Get(), false; g != e {
+		t.Errorf("expected %v, got %v", e, g)
+	}
+	if g, e := m.Get(), true; g != e {
+		t.Errorf("expected %v, got %v", e, g)
+	}
+	if g, e := c.String(), "false"; g != e {
+		t.Errorf("expected %v, got %v", e, g)
+	}
+	if g, e := m.String(), "true"; g != e {
+		t.Errorf("expected %v, got %v", e, g)
+	}
+
+	// set as ""
+	if err := m.Set("false"); err != nil {
+		t.Fatal(err)
+	}
+	if g, e := s, ""; g != e {
+		t.Errorf("expected %q, got %q", e, g)
+	}
+	if g, e := m.Get(), false; g != e {
+		t.Errorf("expected %v, got %v", e, g)
+	}
+	if g, e := m.String(), "false"; g != e {
+		t.Errorf("expected %v, got %v", e, g)
+	}
+}
 
 const iso8601 = "2006-01-02T15:04:05"
 
@@ -212,10 +293,11 @@ func TestMergeCommits(t *testing.T) {
 		t.Fatal(err)
 	}
 	// merge
+	log = append(log, "2021-07-07T14:00:00")
 	if err := checkout("master"); err != nil {
 		t.Fatal(err)
 	}
-	if err := merge("ff"); err != nil {
+	if err := merge("ff", log[2]); err != nil {
 		t.Fatal(err)
 	}
 
@@ -238,18 +320,29 @@ func TestMergeCommits(t *testing.T) {
 			t.Errorf("%v: expected %v, got %v", tt.path, tt.mtime, mtime)
 		}
 	}
+	// specify -c
+	flag.Set("c", "true")
+	files, err = ls(wt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := utime(wt, files); err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []fileTest{
+		{log[1], "foo"},
+		{log[1], "."},
+	} {
+		if mtime := stat(tt.path); mtime != tt.mtime {
+			t.Errorf("%v: expected %v, got %v", tt.path, tt.mtime, mtime)
+		}
+	}
+	// reset
+	flag.Set("c", "false")
 
 	// commit
-	log = append(log, "2021-07-07T14:00:00")
-	if err := touch("bar"); err != nil {
-		t.Fatal(err)
-	}
-	if err := commit(log[2]); err != nil {
-		t.Fatal(err)
-	}
-	// commit
 	log = append(log, "2021-07-07T15:00:00")
-	if err := file("bar", "1\n2\n3\n"); err != nil {
+	if err := touch("bar"); err != nil {
 		t.Fatal(err)
 	}
 	if err := commit(log[3]); err != nil {
@@ -257,27 +350,35 @@ func TestMergeCommits(t *testing.T) {
 	}
 	// commit
 	log = append(log, "2021-07-07T16:00:00")
+	if err := file("bar", "1\n2\n3\n"); err != nil {
+		t.Fatal(err)
+	}
+	if err := commit(log[4]); err != nil {
+		t.Fatal(err)
+	}
+	// commit
+	log = append(log, "2021-07-07T17:00:00")
 	if err := checkout("-b", "no-ff", "@~1"); err != nil {
 		t.Fatal(err)
 	}
 	if err := file("bar", "3\n2\n1\n"); err != nil {
 		t.Fatal(err)
 	}
-	if err := commit(log[4]); err != nil {
+	if err := commit(log[5]); err != nil {
 		t.Fatal(err)
 	}
 	// merge
-	log = append(log, "2021-07-07T17:00:00")
+	log = append(log, "2021-07-07T18:00:00")
 	if err := checkout("master"); err != nil {
 		t.Fatal(err)
 	}
-	if err := merge("no-ff"); err == nil {
+	if err := merge("no-ff", log[6]); err == nil {
 		t.Fatal("expected merge conflict")
 	}
 	if err := file("bar", "Let's Go!\n"); err != nil {
 		t.Fatal(err)
 	}
-	if err := commit(log[5]); err != nil {
+	if err := commit(log[6]); err != nil {
 		t.Fatal(err)
 	}
 
@@ -290,13 +391,33 @@ func TestMergeCommits(t *testing.T) {
 	}
 	for _, tt := range []fileTest{
 		{log[1], "foo"},
-		{log[4], "bar"},
-		{log[4], "."},
+		{log[5], "bar"},
+		{log[5], "."},
 	} {
 		if mtime := stat(tt.path); mtime != tt.mtime {
 			t.Errorf("%v: expected %v, got %v", tt.path, tt.mtime, mtime)
 		}
 	}
+	// specify -c
+	flag.Set("c", "true")
+	files, err = ls(wt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := utime(wt, files); err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []fileTest{
+		{log[1], "foo"},
+		{log[6], "bar"},
+		{log[6], "."},
+	} {
+		if mtime := stat(tt.path); mtime != tt.mtime {
+			t.Errorf("%v: expected %v, got %v", tt.path, tt.mtime, mtime)
+		}
+	}
+	// reset
+	flag.Set("c", "false")
 }
 
 func init_() error {
@@ -333,7 +454,12 @@ func commit(date string) error {
 	return nil
 }
 
-func merge(name string) error {
+func merge(name, date string) error {
+	os.Setenv("GIT_AUTHOR_DATE", date)
+	os.Setenv("GIT_COMMITTER_DATE", date)
+	defer os.Unsetenv("GIT_AUTHOR_DATE")
+	defer os.Unsetenv("GIT_COMMITTER_DATE")
+
 	return exec.Command("git", "merge", "--no-ff", name).Run()
 }
 

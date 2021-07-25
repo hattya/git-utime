@@ -10,12 +10,15 @@ package main
 
 import (
 	"bufio"
+	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -25,9 +28,18 @@ const rfc2822 = "Mon, _2 Jan 2006 15:04:05 -0700"
 var (
 	stdout io.Writer = os.Stdout
 	stderr io.Writer = os.Stderr
+
+	diffMerges = "--no-merges"
+	errParse   = errors.New("parse error")
 )
 
+func init() {
+	flag.Var(newMergeValue(&diffMerges, "-c"), "c", `Specify the -c option to git log.`)
+}
+
 func main() {
+	flag.Parse()
+
 	wt, err := getwt()
 	if err != nil {
 		abort(err)
@@ -40,6 +52,36 @@ func main() {
 		abort(err)
 	}
 }
+
+type mergeValue struct {
+	s       *string
+	on, off string
+}
+
+func newMergeValue(p *string, v string) *mergeValue {
+	return &mergeValue{
+		s:   p,
+		on:  v,
+		off: *p,
+	}
+}
+
+func (m *mergeValue) Set(s string) error {
+	v, err := strconv.ParseBool(s)
+	switch {
+	case err != nil:
+		err = errParse
+	case v:
+		*m.s = m.on
+	case *m.s == m.on:
+		*m.s = m.off
+	}
+	return err
+}
+
+func (m *mergeValue) Get() interface{} { return m.s != nil && *m.s == m.on }
+func (m *mergeValue) String() string   { return strconv.FormatBool(m.s != nil && *m.s == m.on) }
+func (m *mergeValue) IsBoolFlag() bool { return true }
 
 func abort(err error) {
 	if err, ok := err.(*exec.ExitError); ok {
@@ -104,7 +146,7 @@ func utime(wt string, files fileset) error {
 	}
 
 	dirs := make(map[string]time.Time)
-	err := git([]string{"-C", wt, "log", "--pretty=%n%x00%cD", "-z", "--name-only", "--no-color", "--no-renames"}, func(out *bufio.Reader) error {
+	err := git([]string{"-C", wt, "log", "--pretty=%n%x00%cD", diffMerges, "-z", "--name-only", "--no-color", "--no-renames"}, func(out *bufio.Reader) error {
 		n := len(files)
 		defer func() {
 			if len(files) < n {
@@ -134,8 +176,17 @@ func utime(wt string, files fileset) error {
 				if err != nil {
 					return err
 				}
-				// commit: file names are in the next line
-				continue
+				switch l[i:] {
+				case "\x00":
+					// commit: file names are in the next line
+					continue
+				case "\x00\x00":
+					// merge commit: no file names
+					continue
+				default:
+					// merge commit: file names are in the same line
+					l = l[i+2:]
+				}
 			}
 			for _, p := range strings.Split(l, "\x00") {
 				if _, ok := files[p]; !ok {
