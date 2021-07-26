@@ -35,6 +35,7 @@ var (
 
 func init() {
 	flag.Var(newMergeValue(&diffMerges, "-c"), "c", `Specify the -c option to git log.`)
+	flag.Var(newMergeValue(&diffMerges, "-m"), "m", `Specify the -m option to git log.`)
 }
 
 func main() {

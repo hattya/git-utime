@@ -337,8 +337,26 @@ func TestMergeCommits(t *testing.T) {
 			t.Errorf("%v: expected %v, got %v", tt.path, tt.mtime, mtime)
 		}
 	}
+	// specify -m
+	flag.Set("m", "true")
+	files, err = ls(wt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := utime(wt, files); err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []fileTest{
+		{log[2], "foo"},
+		{log[2], "."},
+	} {
+		if mtime := stat(tt.path); mtime != tt.mtime {
+			t.Errorf("%v: expected %v, got %v", tt.path, tt.mtime, mtime)
+		}
+	}
 	// reset
 	flag.Set("c", "false")
+	flag.Set("m", "false")
 
 	// commit
 	log = append(log, "2021-07-07T15:00:00")
@@ -416,8 +434,27 @@ func TestMergeCommits(t *testing.T) {
 			t.Errorf("%v: expected %v, got %v", tt.path, tt.mtime, mtime)
 		}
 	}
+	// specify -m
+	flag.Set("m", "true")
+	files, err = ls(wt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := utime(wt, files); err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []fileTest{
+		{log[2], "foo"},
+		{log[6], "bar"},
+		{log[6], "."},
+	} {
+		if mtime := stat(tt.path); mtime != tt.mtime {
+			t.Errorf("%v: expected %v, got %v", tt.path, tt.mtime, mtime)
+		}
+	}
 	// reset
 	flag.Set("c", "false")
+	flag.Set("m", "false")
 }
 
 func init_() error {
