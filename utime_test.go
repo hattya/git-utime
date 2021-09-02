@@ -110,11 +110,7 @@ func init() {
 }
 
 func TestNoRepo(t *testing.T) {
-	dir, err := tempDir()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 	popd, err := pushd(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -130,12 +126,7 @@ func TestNoRepo(t *testing.T) {
 }
 
 func TestEmptyRepo(t *testing.T) {
-	dir, err := tempDir()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-	popd, err := pushd(dir)
+	popd, err := pushd(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,12 +151,7 @@ func TestEmptyRepo(t *testing.T) {
 }
 
 func TestCommits(t *testing.T) {
-	dir, err := tempDir()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-	popd, err := pushd(dir)
+	popd, err := pushd(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -258,12 +244,7 @@ func TestCommits(t *testing.T) {
 }
 
 func TestMergeCommits(t *testing.T) {
-	dir, err := tempDir()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-	popd, err := pushd(dir)
+	popd, err := pushd(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
