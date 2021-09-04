@@ -30,6 +30,7 @@ var (
 	stderr io.Writer = os.Stderr
 
 	diffMerges = "--no-merges"
+	recurse    = flag.Bool("r", false, "Recurse into submodules.")
 	errParse   = errors.New("parse error")
 )
 
@@ -45,11 +46,7 @@ func main() {
 	if err != nil {
 		abort(err)
 	}
-	files, err := ls(wt)
-	if err != nil {
-		abort(err)
-	}
-	if err := utime(wt, files); err != nil {
+	if err := utimeAll(wt); err != nil {
 		abort(err)
 	}
 }
@@ -105,6 +102,51 @@ func getwt() (wt string, err error) {
 	return
 }
 
+func utimeAll(wt string) error {
+	order := []string{wt}
+	if *recurse {
+		mods, err := submodules(wt)
+		if err != nil {
+			return err
+		}
+		order = append(order, mods...)
+	}
+	dirs := make(map[string]fileset, len(order))
+	var m, n int
+	for _, p := range order {
+		files, err := ls(p)
+		if err != nil {
+			return err
+		}
+		dirs[p] = files
+		n += len(files)
+	}
+	for i := len(dirs) - 1; i >= 0; i-- {
+		p := order[i]
+		m += len(dirs[p])
+		if err := utime(p, dirs[p], m, n); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func submodules(path string) (mods []string, err error) {
+	err = git([]string{"-C", path, "submodule", "status", "--recursive"}, func(out *bufio.Reader) error {
+		for {
+			s, err := out.ReadString('\n')
+			switch {
+			case err != nil:
+				return err
+			case s[0] == '-':
+				continue
+			}
+			mods = append(mods, filepath.Join(path, strings.SplitN(s[1:], " ", 3)[1]))
+		}
+	})
+	return
+}
+
 func ls(path string) (fileset, error) {
 	files := make(fileset)
 	err := git([]string{"-C", path, "ls-files", "-z"}, func(out *bufio.Reader) error {
@@ -141,16 +183,16 @@ func ls(path string) (fileset, error) {
 	return files, err
 }
 
-func utime(wt string, files fileset) error {
+func utime(wt string, files fileset, m, n int) error {
 	if len(files) == 0 {
 		return nil
 	}
 
 	dirs := make(map[string]time.Time)
 	err := git([]string{"-C", wt, "log", "--pretty=%n%x00%cD", diffMerges, "-z", "--name-only", "--no-color", "--no-renames"}, func(out *bufio.Reader) error {
-		n := len(files)
+		var done bool
 		defer func() {
-			if len(files) < n {
+			if m == n && done {
 				fmt.Fprintln(stdout)
 			}
 		}()
@@ -205,7 +247,8 @@ func utime(wt string, files fileset) error {
 						dirs[p] = tm
 					}
 				}
-				fmt.Fprintf(stdout, "\rutime: %3d%% (%d/%d)", (n-len(files))*100/n, n-len(files), n)
+				fmt.Fprintf(stdout, "\rutime: %3d%% (%d/%d)", (m-len(files))*100/n, m-len(files), n)
+				done = true
 			}
 		}
 		return nil

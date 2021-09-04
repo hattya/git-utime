@@ -107,6 +107,7 @@ type fileTest struct {
 func init() {
 	stdout = ioutil.Discard
 	stderr = ioutil.Discard
+	*recurse = true
 }
 
 func TestNoRepo(t *testing.T) {
@@ -118,6 +119,9 @@ func TestNoRepo(t *testing.T) {
 	defer popd()
 
 	if _, err := getwt(); err == nil {
+		t.Fatal("expected error")
+	}
+	if _, err := submodules(dir); err == nil {
 		t.Fatal("expected error")
 	}
 	if _, err := ls(dir); err == nil {
@@ -138,6 +142,13 @@ func TestEmptyRepo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	mods, err := submodules(wt)
+	switch {
+	case err != nil:
+		t.Fatal(err)
+	case len(mods) != 0:
+		t.Fatalf("expected empty, got %v", mods)
+	}
 	files, err := ls(wt)
 	switch {
 	case err != nil:
@@ -145,7 +156,7 @@ func TestEmptyRepo(t *testing.T) {
 	case len(files) != 0:
 		t.Fatalf("expected empty, got %v", files)
 	}
-	if err := utime(wt, files); err != nil {
+	if err := utimeAll(wt); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -188,11 +199,7 @@ func TestCommits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	files, err := ls(wt)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := utime(wt, files); err != nil {
+	if err := utimeAll(wt); err != nil {
 		t.Fatal(err)
 	}
 	for _, tt := range []fileTest{
@@ -223,11 +230,7 @@ func TestCommits(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	files, err = ls(wt)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := utime(wt, files); err != nil {
+	if err := utimeAll(wt); err != nil {
 		t.Fatal(err)
 	}
 	for _, tt := range []fileTest{
@@ -286,11 +289,7 @@ func TestMergeCommits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	files, err := ls(wt)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := utime(wt, files); err != nil {
+	if err := utimeAll(wt); err != nil {
 		t.Fatal(err)
 	}
 	for _, tt := range []fileTest{
@@ -303,11 +302,7 @@ func TestMergeCommits(t *testing.T) {
 	}
 	// specify -c
 	flag.Set("c", "true")
-	files, err = ls(wt)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := utime(wt, files); err != nil {
+	if err := utimeAll(wt); err != nil {
 		t.Fatal(err)
 	}
 	for _, tt := range []fileTest{
@@ -320,11 +315,7 @@ func TestMergeCommits(t *testing.T) {
 	}
 	// specify -m
 	flag.Set("m", "true")
-	files, err = ls(wt)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := utime(wt, files); err != nil {
+	if err := utimeAll(wt); err != nil {
 		t.Fatal(err)
 	}
 	for _, tt := range []fileTest{
@@ -381,11 +372,7 @@ func TestMergeCommits(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	files, err = ls(wt)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := utime(wt, files); err != nil {
+	if err := utimeAll(wt); err != nil {
 		t.Fatal(err)
 	}
 	for _, tt := range []fileTest{
@@ -399,11 +386,7 @@ func TestMergeCommits(t *testing.T) {
 	}
 	// specify -c
 	flag.Set("c", "true")
-	files, err = ls(wt)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := utime(wt, files); err != nil {
+	if err := utimeAll(wt); err != nil {
 		t.Fatal(err)
 	}
 	for _, tt := range []fileTest{
@@ -417,11 +400,7 @@ func TestMergeCommits(t *testing.T) {
 	}
 	// specify -m
 	flag.Set("m", "true")
-	files, err = ls(wt)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := utime(wt, files); err != nil {
+	if err := utimeAll(wt); err != nil {
 		t.Fatal(err)
 	}
 	for _, tt := range []fileTest{
@@ -436,6 +415,149 @@ func TestMergeCommits(t *testing.T) {
 	// reset
 	flag.Set("c", "false")
 	flag.Set("m", "false")
+}
+
+func TestSubmodule(t *testing.T) {
+	popd, err := pushd(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer popd()
+
+	var log []string
+	// repository: baz
+	if err := mkdir("baz"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir("baz"); err != nil {
+		t.Fatal(err)
+	}
+	if err := init_(); err != nil {
+		t.Fatal(err)
+	}
+	// commit
+	log = append(log, "2021-07-07T12:00:00")
+	if err := touch("file"); err != nil {
+		t.Fatal(err)
+	}
+	if err := commit(log[0]); err != nil {
+		t.Fatal(err)
+	}
+	// popd
+	if err := os.Chdir(".."); err != nil {
+		t.Fatal(err)
+	}
+
+	// repository: bar
+	if err := mkdir("bar"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir("bar"); err != nil {
+		t.Fatal(err)
+	}
+	if err := init_(); err != nil {
+		t.Fatal(err)
+	}
+	// commit
+	log = append(log, "2021-07-07T13:00:00")
+	if err := touch("file"); err != nil {
+		t.Fatal(err)
+	}
+	if err := commit(log[1]); err != nil {
+		t.Fatal(err)
+	}
+	// commit
+	log = append(log, "2021-07-07T14:00:00")
+	if err := addSubmodule("../baz", "baz"); err != nil {
+		t.Fatal(err)
+	}
+	if err := commit(log[2]); err != nil {
+		t.Fatal(err)
+	}
+	// popd
+	if err := os.Chdir(".."); err != nil {
+		t.Fatal(err)
+	}
+
+	// repository foo
+	if err := mkdir("foo"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir("foo"); err != nil {
+		t.Fatal(err)
+	}
+	if err := init_(); err != nil {
+		t.Fatal(err)
+	}
+	// commit
+	log = append(log, "2021-07-07T15:00:00")
+	if err := touch("file"); err != nil {
+		t.Fatal(err)
+	}
+	if err := commit(log[3]); err != nil {
+		t.Fatal(err)
+	}
+	// commit
+	log = append(log, "2021-07-07T16:00:00")
+	if err := addSubmodule("../bar", "bar"); err != nil {
+		t.Fatal(err)
+	}
+	if err := commit(log[4]); err != nil {
+		t.Fatal(err)
+	}
+
+	wt, err := getwt()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mods, err := submodules(wt)
+	switch {
+	case err != nil:
+		t.Fatal(err)
+	case len(mods) != 1:
+		t.Errorf("expected 1, got %v", mods)
+	}
+	if err := utimeAll(wt); err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []fileTest{
+		{log[1], filepath.Join("bar", "file")},
+		{log[2], filepath.Join("bar", "baz")},
+		{log[3], "file"},
+		{log[4], "bar"},
+		{log[4], "."},
+	} {
+		if mtime := stat(tt.path); mtime != tt.mtime {
+			t.Errorf("%v: expected %v, got %v", tt.path, tt.mtime, mtime)
+		}
+	}
+
+	if err := initSubmodules(); err != nil {
+		t.Fatal(err)
+	}
+
+	mods, err = submodules(wt)
+	switch {
+	case err != nil:
+		t.Fatal(err)
+	case len(mods) != 2:
+		t.Errorf("expected 1, got %v", mods)
+	}
+	if err := utimeAll(wt); err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []fileTest{
+		{log[0], filepath.Join("bar", "baz", "file")},
+		{log[1], filepath.Join("bar", "file")},
+		{log[2], filepath.Join("bar", "baz")},
+		{log[3], "file"},
+		{log[4], "bar"},
+		{log[4], "."},
+	} {
+		if mtime := stat(tt.path); mtime != tt.mtime {
+			t.Errorf("%v: expected %v, got %v", tt.path, tt.mtime, mtime)
+		}
+	}
 }
 
 func init_() error {
@@ -485,6 +607,14 @@ func mv(oldpath, newpath string) error {
 	return exec.Command("git", "mv", oldpath, newpath).Run()
 }
 
+func addSubmodule(repo, path string) error {
+	return exec.Command("git", "submodule", "add", repo, path).Run()
+}
+
+func initSubmodules() error {
+	return exec.Command("git", "submodule", "update", "--init", "--recursive").Run()
+}
+
 func file(name, data string) error {
 	return ioutil.WriteFile(name, []byte(data), 0o666)
 }
@@ -507,10 +637,6 @@ func pushd(path string) (func() error, error) {
 func stat(path string) string {
 	fi, _ := os.Lstat(path)
 	return fi.ModTime().Format(iso8601)
-}
-
-func tempDir() (string, error) {
-	return ioutil.TempDir("", "git-utime")
 }
 
 func touch(s ...string) error {
