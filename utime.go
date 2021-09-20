@@ -282,14 +282,17 @@ func git(args []string, fn func(*bufio.Reader) error) error {
 	}
 	defer stdout.Close()
 
-	if err := cmd.Start(); err != nil {
+	if err = cmd.Start(); err != nil {
 		return err
 	}
-	if err := fn(bufio.NewReader(stdout)); err != nil && err != io.EOF {
+	br := bufio.NewReader(stdout)
+	if err = fn(br); err == nil {
+		_, err = br.Discard(3)
+	}
+	if err != io.EOF {
 		cmd.Process.Kill()
 		cmd.Wait()
 		return err
 	}
-	stdout.Close()
 	return cmd.Wait()
 }
