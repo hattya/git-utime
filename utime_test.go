@@ -127,6 +127,9 @@ func TestNoRepo(t *testing.T) {
 	if _, err := ls(dir); err == nil {
 		t.Fatal("expected error")
 	}
+	if err := utimeAll(dir); err == nil {
+		t.Fatal("expected error")
+	}
 }
 
 func TestEmptyRepo(t *testing.T) {
@@ -640,5 +643,5 @@ func stat(path string) string {
 }
 
 func touch(s ...string) error {
-	return ioutil.WriteFile(filepath.Join(s...), []byte{}, 0666)
+	return ioutil.WriteFile(filepath.Join(s...), []byte{}, 0o666)
 }
