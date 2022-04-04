@@ -1,7 +1,7 @@
 //
 // git-utime :: utime_test.go
 //
-//   Copyright (c) 2021 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2021-2022 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -10,7 +10,7 @@ package main
 
 import (
 	"flag"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -105,8 +105,8 @@ type fileTest struct {
 }
 
 func init() {
-	stdout = ioutil.Discard
-	stderr = ioutil.Discard
+	stdout = io.Discard
+	stderr = io.Discard
 	*recurse = true
 }
 
@@ -619,7 +619,7 @@ func initSubmodules() error {
 }
 
 func file(name, data string) error {
-	return ioutil.WriteFile(name, []byte(data), 0o666)
+	return os.WriteFile(name, []byte(data), 0o666)
 }
 
 func mkdir(s ...string) error {
@@ -643,5 +643,5 @@ func stat(path string) string {
 }
 
 func touch(s ...string) error {
-	return ioutil.WriteFile(filepath.Join(s...), []byte{}, 0o666)
+	return os.WriteFile(filepath.Join(s...), []byte{}, 0o666)
 }

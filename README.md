@@ -10,7 +10,7 @@ A Git extension to set the last modification time of each file to the last commi
 ## Installation
 
 ```console
-$ go get -u github.com/hattya/git-utime
+$ go install github.com/hattya/git-utime@latest
 ```
 
 
