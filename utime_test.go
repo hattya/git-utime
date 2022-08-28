@@ -186,7 +186,7 @@ func TestCommits(t *testing.T) {
 	if err := touch("bar", "foo"); err != nil {
 		t.Fatal(err)
 	}
-	if err := commit(log[0]); err != nil {
+	if err := commit(t, log[0]); err != nil {
 		t.Fatal(err)
 	}
 	// commit
@@ -194,7 +194,7 @@ func TestCommits(t *testing.T) {
 	if err := touch("bar", "bar"); err != nil {
 		t.Fatal(err)
 	}
-	if err := commit(log[1]); err != nil {
+	if err := commit(t, log[1]); err != nil {
 		t.Fatal(err)
 	}
 
@@ -265,7 +265,7 @@ func TestMergeCommits(t *testing.T) {
 	if err := file("foo", "1"); err != nil {
 		t.Fatal(err)
 	}
-	if err := commit(log[0]); err != nil {
+	if err := commit(t, log[0]); err != nil {
 		t.Fatal(err)
 	}
 	// commit
@@ -276,7 +276,7 @@ func TestMergeCommits(t *testing.T) {
 	if err := file("foo", "2"); err != nil {
 		t.Fatal(err)
 	}
-	if err := commit(log[1]); err != nil {
+	if err := commit(t, log[1]); err != nil {
 		t.Fatal(err)
 	}
 	// merge
@@ -284,7 +284,7 @@ func TestMergeCommits(t *testing.T) {
 	if err := checkout("master"); err != nil {
 		t.Fatal(err)
 	}
-	if err := merge("ff", log[2]); err != nil {
+	if err := merge(t, "ff", log[2]); err != nil {
 		t.Fatal(err)
 	}
 
@@ -338,7 +338,7 @@ func TestMergeCommits(t *testing.T) {
 	if err := touch("bar"); err != nil {
 		t.Fatal(err)
 	}
-	if err := commit(log[3]); err != nil {
+	if err := commit(t, log[3]); err != nil {
 		t.Fatal(err)
 	}
 	// commit
@@ -346,7 +346,7 @@ func TestMergeCommits(t *testing.T) {
 	if err := file("bar", "1\n2\n3\n"); err != nil {
 		t.Fatal(err)
 	}
-	if err := commit(log[4]); err != nil {
+	if err := commit(t, log[4]); err != nil {
 		t.Fatal(err)
 	}
 	// commit
@@ -357,7 +357,7 @@ func TestMergeCommits(t *testing.T) {
 	if err := file("bar", "3\n2\n1\n"); err != nil {
 		t.Fatal(err)
 	}
-	if err := commit(log[5]); err != nil {
+	if err := commit(t, log[5]); err != nil {
 		t.Fatal(err)
 	}
 	// merge
@@ -365,13 +365,13 @@ func TestMergeCommits(t *testing.T) {
 	if err := checkout("master"); err != nil {
 		t.Fatal(err)
 	}
-	if err := merge("no-ff", log[6]); err == nil {
+	if err := merge(t, "no-ff", log[6]); err == nil {
 		t.Fatal("expected merge conflict")
 	}
 	if err := file("bar", "Let's Go!\n"); err != nil {
 		t.Fatal(err)
 	}
-	if err := commit(log[6]); err != nil {
+	if err := commit(t, log[6]); err != nil {
 		t.Fatal(err)
 	}
 
@@ -443,7 +443,7 @@ func TestSubmodule(t *testing.T) {
 	if err := touch("file"); err != nil {
 		t.Fatal(err)
 	}
-	if err := commit(log[0]); err != nil {
+	if err := commit(t, log[0]); err != nil {
 		t.Fatal(err)
 	}
 	// popd
@@ -466,7 +466,7 @@ func TestSubmodule(t *testing.T) {
 	if err := touch("file"); err != nil {
 		t.Fatal(err)
 	}
-	if err := commit(log[1]); err != nil {
+	if err := commit(t, log[1]); err != nil {
 		t.Fatal(err)
 	}
 	// commit
@@ -474,7 +474,7 @@ func TestSubmodule(t *testing.T) {
 	if err := addSubmodule("../baz", "baz"); err != nil {
 		t.Fatal(err)
 	}
-	if err := commit(log[2]); err != nil {
+	if err := commit(t, log[2]); err != nil {
 		t.Fatal(err)
 	}
 	// popd
@@ -497,7 +497,7 @@ func TestSubmodule(t *testing.T) {
 	if err := touch("file"); err != nil {
 		t.Fatal(err)
 	}
-	if err := commit(log[3]); err != nil {
+	if err := commit(t, log[3]); err != nil {
 		t.Fatal(err)
 	}
 	// commit
@@ -505,7 +505,7 @@ func TestSubmodule(t *testing.T) {
 	if err := addSubmodule("../bar", "bar"); err != nil {
 		t.Fatal(err)
 	}
-	if err := commit(log[4]); err != nil {
+	if err := commit(t, log[4]); err != nil {
 		t.Fatal(err)
 	}
 
@@ -580,11 +580,10 @@ func checkout(a ...string) error {
 	return exec.Command("git", append([]string{"checkout"}, a...)...).Run()
 }
 
-func commit(date string) error {
-	os.Setenv("GIT_AUTHOR_DATE", date)
-	os.Setenv("GIT_COMMITTER_DATE", date)
-	defer os.Unsetenv("GIT_AUTHOR_DATE")
-	defer os.Unsetenv("GIT_COMMITTER_DATE")
+func commit(t *testing.T, date string) error {
+	t.Helper()
+	t.Setenv("GIT_AUTHOR_DATE", date)
+	t.Setenv("GIT_COMMITTER_DATE", date)
 
 	for _, args := range [][]string{
 		{"add", "."},
@@ -597,11 +596,10 @@ func commit(date string) error {
 	return nil
 }
 
-func merge(name, date string) error {
-	os.Setenv("GIT_AUTHOR_DATE", date)
-	os.Setenv("GIT_COMMITTER_DATE", date)
-	defer os.Unsetenv("GIT_AUTHOR_DATE")
-	defer os.Unsetenv("GIT_COMMITTER_DATE")
+func merge(t *testing.T, name, date string) error {
+	t.Helper()
+	t.Setenv("GIT_AUTHOR_DATE", date)
+	t.Setenv("GIT_COMMITTER_DATE", date)
 
 	return exec.Command("git", "merge", "--no-ff", name).Run()
 }
