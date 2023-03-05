@@ -1,7 +1,7 @@
 //
 // git-utime :: utime_test.go
 //
-//   Copyright (c) 2021-2022 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2021-2023 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -426,6 +426,7 @@ func TestSubmodule(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer popd()
+	t.Setenv("GIT_ALLOW_PROTOCOL", "file")
 
 	var log []string
 	// repository: baz
