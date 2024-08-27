@@ -1,5 +1,5 @@
 module github.com/hattya/git-utime
 
-go 1.20
+go 1.21
 
-require golang.org/x/sys v0.17.0
+require golang.org/x/sys v0.23.0
