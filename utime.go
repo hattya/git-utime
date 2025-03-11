@@ -1,7 +1,7 @@
 //
 // git-utime :: utime.go
 //
-//   Copyright (c) 2021 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2021-2025 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -77,7 +77,7 @@ func (m *mergeValue) Set(s string) error {
 	return err
 }
 
-func (m *mergeValue) Get() interface{} { return m.s != nil && *m.s == m.on }
+func (m *mergeValue) Get() any         { return m.s != nil && *m.s == m.on }
 func (m *mergeValue) String() string   { return strconv.FormatBool(m.s != nil && *m.s == m.on) }
 func (m *mergeValue) IsBoolFlag() bool { return true }
 
