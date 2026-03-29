@@ -1,7 +1,7 @@
 //
 // git-utime :: utime.go
 //
-//   Copyright (c) 2021-2025 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2021-2026 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -231,7 +231,7 @@ func utime(wt string, files fileset, m, n int) error {
 					l = l[i+2:]
 				}
 			}
-			for _, p := range strings.Split(l, "\x00") {
+			for p := range strings.SplitSeq(l, "\x00") {
 				if _, ok := files[p]; !ok {
 					continue
 				}
